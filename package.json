@@ -1,7 +1,7 @@
 {
   "name": "@macchie/capacitor-net-utils",
   "version": "0.0.1",
-  "description": "Set of Network Utilities",
+  "description": "A Capacitor Plugin for Network Utilities",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",

@@ -1,5 +1,5 @@
 {
-  "name": "net-utils",
+  "name": "@macchie/capacitor-net-utils",
   "version": "0.0.1",
   "description": "Set of Network Utilities",
   "main": "dist/plugin.cjs.js",

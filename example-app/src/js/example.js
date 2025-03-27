@@ -1,6 +1,6 @@
 import { NetUtils } from 'net-utils';
 
-window.testEcho = () => {
+window.test = () => {
     const inputValue = document.getElementById("echoInput").value;
     NetUtils.echo({ value: inputValue })
 }

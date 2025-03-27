@@ -13,24 +13,62 @@ npx cap sync
 
 <docgen-index>
 
-* [`echo(...)`](#echo)
+* [`checkPort(...)`](#checkport)
+* [`resolveHostname(...)`](#resolvehostname)
+* [`runSSHCommand(...)`](#runsshcommand)
 
 </docgen-index>
 
 <docgen-api>
 <!--Update the source file JSDoc comments and rerun docgen to update the docs below-->
 
-### echo(...)
+### checkPort(...)
 
 ```typescript
-echo(options: { value: string; }) => Promise<{ value: string; }>
+checkPort(options: { host: string; port: number; protocol: 'tcp' | 'udp'; timeout?: number; }) => Promise<{ open: boolean; error?: string; }>
 ```
 
-| Param         | Type                            |
-| ------------- | ------------------------------- |
-| **`options`** | <code>{ value: string; }</code> |
+Check if a network port is open on the given host using the specified protocol.
 
-**Returns:** <code>Promise&lt;{ value: string; }&gt;</code>
+| Param         | Type                                                                                     |
+| ------------- | ---------------------------------------------------------------------------------------- |
+| **`options`** | <code>{ host: string; port: number; protocol: 'tcp' \| 'udp'; timeout?: number; }</code> |
+
+**Returns:** <code>Promise&lt;{ open: boolean; error?: string; }&gt;</code>
+
+--------------------
+
+
+### resolveHostname(...)
+
+```typescript
+resolveHostname(options: { host: string; timeout?: number; }) => Promise<{ hostname: string | null; error?: string; }>
+```
+
+Resolve the hostname for a given IP address.
+
+| Param         | Type                                             |
+| ------------- | ------------------------------------------------ |
+| **`options`** | <code>{ host: string; timeout?: number; }</code> |
+
+**Returns:** <code>Promise&lt;{ hostname: string | null; error?: string; }&gt;</code>
+
+--------------------
+
+
+### runSSHCommand(...)
+
+```typescript
+runSSHCommand(options: { host: string; port?: number; user: string; password: string; command: string; }) => Promise<{ output: string; error?: string; }>
+```
+
+Run an SSH command on a remote host.
+
+| Param         | Type                                                                                           |
+| ------------- | ---------------------------------------------------------------------------------------------- |
+| **`options`** | <code>{ host: string; port?: number; user: string; password: string; command: string; }</code> |
+
+**Returns:** <code>Promise&lt;{ output: string; error?: string; }&gt;</code>
 
 --------------------
 

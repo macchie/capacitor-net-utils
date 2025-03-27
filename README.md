@@ -1,11 +1,13 @@
-# net-utils
+# @macchie/capacitor-net-utils
 
-Set of Network Utilities
+A Capacitor Plugin for Network Utilities
 
 ## Install
 
+_Not published yet_
+
 ```bash
-npm install net-utils
+npm install @macchie/capacitor-net-utils
 npx cap sync
 ```
 

@@ -1,15 +1,9 @@
 import Foundation
 import Capacitor
 import Network
-import NMSSH
 
 @objc(NetUtils)
 public class NetUtils: NSObject {
-
-    // @objc public func echo(_ value: String) -> String {
-    //     print(value)
-    //     return value
-    // }
 
     @objc func checkPort(_ call: CAPPluginCall) {
     guard let host = call.getString("host"),
@@ -94,50 +88,57 @@ public class NetUtils: NSObject {
     }
   }
 
-  @objc func runSSHCommand(_ call: CAPPluginCall) {
-    guard let host = call.getString("host"),
-          let user = call.getString("user"),
-          let password = call.getString("password"),
-          let command = call.getString("command") else {
-      call.reject("host, user, password, and command are required.")
-      return
-    }
+  @objc func getInterfaces(_ call: CAPPluginCall) {
+    var interfacesResult = [[String: String]]()
+    var ifaddr: UnsafeMutablePointer<ifaddrs>? = nil
+
+    if getifaddrs(&ifaddr) == 0 {
+      var ptr = ifaddr
     
-    let port = call.getInt("port", 22) ?? 22
-    
-    DispatchQueue.global().async {
-      // Create and connect the session.
-      if let session = NMSSHSession.connect(toHost: "\(host):\(port)", withUsername: user) {
-        if session.isConnected {
-          session.authenticate(byPassword: password)
-          
-          if session.isAuthorized {
-            var error: NSError?
-            let response = session.channel.execute(command, error: &error, timeout: 10)
-            DispatchQueue.main.async {
-              if let err = error {
-                call.resolve(["output": "", "error": err.localizedDescription])
-              } else {
-                call.resolve(["output": response ?? ""])
-              }
-              session.disconnect()
-            }
+      while ptr != nil {
+        defer { ptr = ptr?.pointee.ifa_next }
+
+        guard let interface = ptr?.pointee else { continue }
+        let name = String(cString: interface.ifa_name)
+        let addrFamily = interface.ifa_addr.pointee.sa_family
+
+        if addrFamily == UInt8(AF_INET) || addrFamily == UInt8(AF_INET6) {
+          var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+
+          getnameinfo(
+            interface.ifa_addr,
+            socklen_t(interface.ifa_addr.pointee.sa_len),
+            &hostname,
+            socklen_t(hostname.count),
+            nil,
+            socklen_t(0),
+            NI_NUMERICHOST
+          )
+
+          let address = String(cString: hostname)
+          let type: String
+
+          if name.hasPrefix("en") {
+            type = "wifi"
+          } else if name.hasPrefix("utun") || name.hasPrefix("tun") {
+            type = "vpn"
+          } else if name.hasPrefix("pdp_ip") {
+            type = "cellular"
           } else {
-            DispatchQueue.main.async {
-              call.resolve(["output": "", "error": "Authentication failed"])
-              session.disconnect()
-            }
+            type = "other"
           }
-        } else {
-          DispatchQueue.main.async {
-            call.resolve(["output": "", "error": "Connection failed"])
-          }
-        }
-      } else {
-        DispatchQueue.main.async {
-          call.resolve(["output": "", "error": "Unable to create SSH session"])
+
+          interfacesResult.append([
+            "name": name,
+            "address": address,
+            "type": type
+          ])
         }
       }
+
+      freeifaddrs(ifaddr)
     }
+
+    call.resolve([ "output": interfacesResult ?? [], "error": "" ])
   }
 }

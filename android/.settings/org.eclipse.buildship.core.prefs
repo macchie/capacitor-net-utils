@@ -1,11 +1,11 @@
-arguments=--init-script /var/folders/7l/9nt1krr10vsbss8gp2p4hl240000gn/T/db3b08fc4a9ef609cb16b96b200fa13e563f396e9bb1ed0905fdab7bc3bc513b.gradle --init-script /var/folders/7l/9nt1krr10vsbss8gp2p4hl240000gn/T/52cde0cfcf3e28b8b7510e992210d9614505e0911af0c190bd590d7158574963.gradle
+arguments=--init-script /home/macchie/.config/Code/User/globalStorage/redhat.java/1.42.0/config_linux/org.eclipse.osgi/58/0/.cp/gradle/init/init.gradle --init-script /home/macchie/.config/Code/User/globalStorage/redhat.java/1.42.0/config_linux/org.eclipse.osgi/58/0/.cp/gradle/protobuf/init.gradle
 auto.sync=false
 build.scans.enabled=false
 connection.gradle.distribution=GRADLE_DISTRIBUTION(WRAPPER)
 connection.project.dir=
 eclipse.preferences.version=1
 gradle.user.home=
-java.home=/Users/macchie/Library/JVM/zulu8.84.0.15-ca-jdk8.0.442-macosx_aarch64
+java.home=/usr/lib/jvm/jdk-17.0.7+7
 jvm.arguments=
 offline.mode=false
 override.workspace.settings=true

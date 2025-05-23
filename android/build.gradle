@@ -47,8 +47,8 @@ repositories {
     mavenCentral()
 }
 
-
 dependencies {
+    implementation "com.github.mwiede:jsch:2.27.0"
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation project(':capacitor-android')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"

@@ -10,7 +10,7 @@ public class SSHSession: NSObject, NMSSHChannelDelegate {
 
   weak var plugin: NetUtilsPlugin?
 
-  // Buffers for stdout and stderr data
+  private let bufferQueue = DispatchQueue(label: "com.macchie.SSHSession.buffer")
   private var stdoutBuffer: String = ""
   private var stderrBuffer: String = ""
   private var outputTimer: Timer?
@@ -18,49 +18,61 @@ public class SSHSession: NSObject, NMSSHChannelDelegate {
   init(plugin: NetUtilsPlugin) {
     self.plugin = plugin
     super.init()
-    // Schedule a timer to flush buffers every 0.1 seconds on the main thread
-    DispatchQueue.main.async {
-      self.outputTimer = Timer.scheduledTimer(timeInterval: 0.1,
-                                              target: self,
-                                              selector: #selector(self.flushOutputBuffers),
-                                              userInfo: nil,
-                                              repeats: true)
+    startFlushTimer()
+  }
+
+  private func startFlushTimer() {
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
+      self.outputTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        self?.flushOutputBuffers()
+      }
     }
+  }
+
+  func cleanup() {
+    outputTimer?.invalidate()
+    outputTimer = nil
+    if let channel = channel {
+      channel.closeShell()
+    }
+    channel = nil
+    session?.disconnect()
+    session = nil
   }
 
   deinit {
     outputTimer?.invalidate()
   }
 
-  // NMSSHChannelDelegate: Called when data is received from the shell's stdout
   public func channel(_ channel: NMSSHChannel!, didReadData message: String!) {
-    DispatchQueue.global(qos: .userInitiated).async {
-      if let message = message {
-        self.stdoutBuffer.append(message)
-      }
+    guard let message = message else { return }
+    bufferQueue.async {
+      self.stdoutBuffer.append(message)
     }
   }
-  
-  // NMSSHChannelDelegate: Called when error output is received from the shell's stderr
+
   public func channel(_ channel: NMSSHChannel!, didReadError error: String!) {
-    DispatchQueue.global(qos: .userInitiated).async {
-      if let errorMsg = error {
-        self.stderrBuffer.append(errorMsg)
-      }
+    guard let errorMsg = error else { return }
+    bufferQueue.async {
+      self.stderrBuffer.append(errorMsg)
     }
   }
-  
-  // Timer callback to flush the buffered output
-  @objc private func flushOutputBuffers() {
-    if !stdoutBuffer.isEmpty {
-      let dataToSend = stdoutBuffer
-      stdoutBuffer = ""
-      self.plugin?.notifyListeners("ssh:stdout", data: ["data": dataToSend])
-    }
-    if !stderrBuffer.isEmpty {
-      let dataToSend = stderrBuffer
-      stderrBuffer = ""
-      self.plugin?.notifyListeners("ssh:stderr", data: ["data": dataToSend])
+
+  private func flushOutputBuffers() {
+    bufferQueue.async { [weak self] in
+      guard let self = self else { return }
+
+      if !self.stdoutBuffer.isEmpty {
+        let dataToSend = self.stdoutBuffer
+        self.stdoutBuffer = ""
+        self.plugin?.notifyListeners("ssh:stdout", data: ["data": dataToSend])
+      }
+      if !self.stderrBuffer.isEmpty {
+        let dataToSend = self.stderrBuffer
+        self.stderrBuffer = ""
+        self.plugin?.notifyListeners("ssh:stderr", data: ["data": dataToSend])
+      }
     }
   }
 
@@ -71,18 +83,24 @@ public class SSHSession: NSObject, NMSSHChannelDelegate {
       call.reject("Missing parameters. Provide host, username, and password.")
       return
     }
-    
-    session = NMSSHSession.connect(toHost: host, withUsername: username)
-      
-    if let session = session, session.isConnected {
-      session.authenticate(byPassword: password)
-      if session.isAuthorized {
-        call.resolve(["success": true])
+
+    let port = call.getInt("port") ?? 22
+
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      let session = NMSSHSession.connect(toHost: "\(host):\(port)", withUsername: username)
+
+      if let session = session, session.isConnected {
+        session.authenticate(byPassword: password)
+        if session.isAuthorized {
+          self?.session = session
+          call.resolve(["success": true])
+        } else {
+          session.disconnect()
+          call.reject("Authentication failed")
+        }
       } else {
-        call.reject("Authentication failed")
+        call.reject("Connection failed")
       }
-    } else {
-      call.reject("Connection failed")
     }
   }
 
@@ -91,22 +109,17 @@ public class SSHSession: NSObject, NMSSHChannelDelegate {
       call.reject("No active session. Call connect() first.")
       return
     }
-    
+
     channel = session.channel
     channel?.delegate = self
     channel?.requestPty = true
-    
-    // Run the shell on a background thread to prevent blocking the main thread
-    DispatchQueue.global(qos: .background).async {
+
+    DispatchQueue.global(qos: .background).async { [weak self] in
       do {
-        try self.channel?.startShell()
-        DispatchQueue.main.async {
-          call.resolve(["success": true])
-        }
+        try self?.channel?.startShell()
+        call.resolve(["success": true])
       } catch let error {
-        DispatchQueue.main.async {
-          call.reject("Failed to start shell: \(error.localizedDescription)")
-        }
+        call.reject("Failed to start shell: \(error.localizedDescription)")
       }
     }
   }
@@ -116,21 +129,24 @@ public class SSHSession: NSObject, NMSSHChannelDelegate {
       call.reject("No command provided")
       return
     }
-    
-    do {
-      try channel?.write(command + "\n")
-      call.resolve(["success": true])
-    } catch let error {
-      call.reject("Failed to write command: \(error.localizedDescription)")
+
+    guard let channel = channel else {
+      call.reject("No active shell. Call startShell() first.")
+      return
+    }
+
+    DispatchQueue.global(qos: .userInitiated).async {
+      do {
+        try channel.write(command + "\n")
+        call.resolve(["success": true])
+      } catch let error {
+        call.reject("Failed to write command: \(error.localizedDescription)")
+      }
     }
   }
 
   @objc func disconnect(_ call: CAPPluginCall) {
-    if let channel = channel {
-      channel.closeShell()
-    }
-    session?.disconnect()
-    session = nil
+    cleanup()
     call.resolve(["success": true])
   }
 }

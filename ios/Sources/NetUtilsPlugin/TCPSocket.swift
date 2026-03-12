@@ -4,9 +4,8 @@ import Network
 
 @objc(TCPSocket)
 public class TCPSocket: NSObject {
-  
+
   var connection: NWConnection?
-  var listenerId: String?
 
   weak var plugin: NetUtilsPlugin?
 
@@ -20,27 +19,45 @@ public class TCPSocket: NSObject {
       return
     }
 
-    let nwEndpoint = NWEndpoint.Host(host)
-    let nwPort = NWEndpoint.Port("\(port)")!
-
-    connection = NWConnection(host: nwEndpoint, port: nwPort, using: .tcp)
-    
-    let timeoutSeconds: Double = 5 // Timeout duration
-    let timeoutItem = DispatchWorkItem { [weak self] in
-      if let conn = self?.connection, conn.state != .ready {
-        conn.cancel()
-        call.reject("Connection timed out")
-      }
+    guard port > 0, port <= 65535, let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
+      call.reject("Invalid port number")
+      return
     }
+
+    let nwEndpoint = NWEndpoint.Host(host)
+    connection = NWConnection(host: nwEndpoint, port: nwPort, using: .tcp)
+
+    let timeoutSeconds: Double = 5
+    var resolved = false
+    let lock = NSLock()
 
     connection?.stateUpdateHandler = { [weak self] state in
       switch state {
       case .ready:
-        timeoutItem.cancel()
-        self?.receive()
-        call.resolve(["success": true])
+        lock.lock()
+        let alreadyResolved = resolved
+        resolved = true
+        lock.unlock()
+        if !alreadyResolved {
+          self?.receive()
+          call.resolve(["success": true])
+        }
       case .failed(let error):
-        call.reject("Connection failed: \(error)")
+        lock.lock()
+        let alreadyResolved = resolved
+        resolved = true
+        lock.unlock()
+        if !alreadyResolved {
+          call.reject("Connection failed: \(error.localizedDescription)")
+        }
+      case .cancelled:
+        lock.lock()
+        let alreadyResolved = resolved
+        resolved = true
+        lock.unlock()
+        if !alreadyResolved {
+          call.reject("Connection cancelled")
+        }
       default:
         break
       }
@@ -48,15 +65,26 @@ public class TCPSocket: NSObject {
 
     connection?.start(queue: .global())
 
-    // If connection isn't ready within the timeout, cancel the connection and reject the call.
-    DispatchQueue.main.asyncAfter(deadline: .now() + timeoutSeconds, execute: timeoutItem)
-
+    DispatchQueue.global().asyncAfter(deadline: .now() + timeoutSeconds) { [weak self] in
+      lock.lock()
+      let alreadyResolved = resolved
+      resolved = true
+      lock.unlock()
+      if !alreadyResolved {
+        self?.connection?.cancel()
+        call.reject("Connection timed out")
+      }
+    }
   }
 
   func receive() {
-    connection?.receive(minimumIncompleteLength: 1, maximumLength: 1024) { [weak self] data, _, _, _ in
-      if let data = data, let string = String(data: data, encoding: .utf8) {
-          self!.plugin!.notifyListeners("tcp:message", data: ["data": string])
+    connection?.receive(minimumIncompleteLength: 1, maximumLength: 1024) { [weak self] data, _, isComplete, error in
+      if let data = data, !data.isEmpty, let string = String(data: data, encoding: .utf8) {
+        self?.plugin?.notifyListeners("tcp:message", data: ["data": string])
+      }
+
+      if isComplete || error != nil {
+        return
       }
 
       self?.receive()
@@ -66,20 +94,26 @@ public class TCPSocket: NSObject {
   @objc func write(_ call: CAPPluginCall) {
     guard let dataStr = call.getString("data"), let data = dataStr.data(using: .utf8) else {
       call.reject("Missing or invalid data")
-
       return
     }
 
-    connection?.send(content: data, completion: .contentProcessed({ _ in
-      call.resolve(["success": true])
+    guard let connection = connection else {
+      call.reject("No active connection")
+      return
+    }
+
+    connection.send(content: data, completion: .contentProcessed({ error in
+      if let error = error {
+        call.reject("Failed to send data: \(error.localizedDescription)")
+      } else {
+        call.resolve(["success": true])
+      }
     }))
   }
 
-  @objc func disconnect(_ call: CAPPluginCall) {
-    if (connection?.state == .ready) {
-      connection?.cancel()
-    }
-
-    call.resolve(["success": true])
+  @objc func disconnect(_ call: CAPPluginCall?) {
+    connection?.cancel()
+    connection = nil
+    call?.resolve(["success": true])
   }
 }

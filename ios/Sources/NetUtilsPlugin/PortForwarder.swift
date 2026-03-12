@@ -91,7 +91,7 @@ class ForwardingSession {
     self.localPort = localPort
     self.targetHost = targetHost
     self.targetPort = targetPort
-    self.listenerQueue = DispatchQueue(label: "com.mycompany.PortForwarder.\(id)")
+    self.listenerQueue = DispatchQueue(label: "com.macchie.PortForwarder.\(id)")
         
     // Choose NWParameters based on protocol type.
     let params: NWParameters

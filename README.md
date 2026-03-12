@@ -41,7 +41,7 @@ npx cap sync
 ### addListener('ssh:stdout' | 'ssh:stderr' | 'tcp:message', ...)
 
 ```typescript
-addListener(eventName: 'ssh:stdout' | 'ssh:stderr' | 'tcp:message', listenerFunc: (event: { data: any; }) => void) => PluginListenerHandle
+addListener(eventName: 'ssh:stdout' | 'ssh:stderr' | 'tcp:message', listenerFunc: (event: { data: any; }) => void) => Promise<PluginListenerHandle>
 ```
 
 | Param              | Type                                                       |
@@ -49,7 +49,7 @@ addListener(eventName: 'ssh:stdout' | 'ssh:stderr' | 'tcp:message', listenerFunc
 | **`eventName`**    | <code>'ssh:stdout' \| 'ssh:stderr' \| 'tcp:message'</code> |
 | **`listenerFunc`** | <code>(event: { data: any; }) =&gt; void</code>            |
 
-**Returns:** <code><a href="#pluginlistenerhandle">PluginListenerHandle</a></code>
+**Returns:** <code>Promise&lt;<a href="#pluginlistenerhandle">PluginListenerHandle</a>&gt;</code>
 
 --------------------
 
@@ -228,12 +228,12 @@ Closes the current SSH connection.
 ### getInterfaces()
 
 ```typescript
-getInterfaces() => Promise<{ output: { name: string; address: string; type: 'wifi' | 'vpn' | 'cellular' | 'other'; }[]; error?: string; }>
+getInterfaces() => Promise<{ output: { name: string; address: string; type: 'wifi' | 'ethernet' | 'vpn' | 'cellular' | 'other'; }[]; error?: string; }>
 ```
 
 Get the IP addresses of the device's network interfaces.
 
-**Returns:** <code>Promise&lt;{ output: { name: string; address: string; type: 'wifi' | 'vpn' | 'cellular' | 'other'; }[]; error?: string; }&gt;</code>
+**Returns:** <code>Promise&lt;{ output: { name: string; address: string; type: 'wifi' | 'ethernet' | 'vpn' | 'cellular' | 'other'; }[]; error?: string; }&gt;</code>
 
 --------------------
 

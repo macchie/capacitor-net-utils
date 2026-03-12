@@ -7,6 +7,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class TCPSocket {
@@ -14,6 +16,7 @@ public class TCPSocket {
   private Socket socket;
   private OutputStream outputStream;
   private final NetUtilsPlugin plugin;
+  private final ExecutorService executor = Executors.newCachedThreadPool();
 
   public TCPSocket(NetUtilsPlugin plugin) {
     this.plugin = plugin;
@@ -28,7 +31,12 @@ public class TCPSocket {
       return;
     }
 
-    Executors.newSingleThreadExecutor().execute(() -> {
+    if (port < 1 || port > 65535) {
+      call.reject("Invalid port number");
+      return;
+    }
+
+    executor.execute(() -> {
       try {
         socket = new Socket();
         socket.connect(new InetSocketAddress(host, port), 5000);
@@ -37,12 +45,12 @@ public class TCPSocket {
         InputStream in = socket.getInputStream();
 
         // Start background read loop
-        Executors.newSingleThreadExecutor().execute(() -> {
+        executor.execute(() -> {
           byte[] buffer = new byte[1024];
           int len;
           try {
             while ((len = in.read(buffer)) != -1) {
-              String data = new String(buffer, 0, len);
+              String data = new String(buffer, 0, len, StandardCharsets.UTF_8);
               JSObject event = new JSObject();
               event.put("data", data);
               plugin.emit("tcp:message", event);
@@ -73,9 +81,9 @@ public class TCPSocket {
       return;
     }
 
-    Executors.newSingleThreadExecutor().execute(() -> {
+    executor.execute(() -> {
       try {
-        outputStream.write(data.getBytes());
+        outputStream.write(data.getBytes(StandardCharsets.UTF_8));
         outputStream.flush();
         JSObject result = new JSObject();
         result.put("success", true);
@@ -87,17 +95,22 @@ public class TCPSocket {
   }
 
   public void disconnect(PluginCall call) {
-    try {
-      if (socket != null && !socket.isClosed()) {
-        socket.close();
-        socket = null;
-        outputStream = null;
-      }
+    cleanup();
+    if (call != null) {
       JSObject result = new JSObject();
       result.put("success", true);
       call.resolve(result);
-    } catch (Exception e) {
-      call.reject("Failed to disconnect: " + e.getMessage());
     }
+  }
+
+  public void cleanup() {
+    try {
+      if (socket != null && !socket.isClosed()) {
+        socket.close();
+      }
+    } catch (Exception ignored) {}
+    socket = null;
+    outputStream = null;
+    executor.shutdownNow();
   }
 }

@@ -19,6 +19,21 @@ public class NetUtilsPlugin extends Plugin {
     notifyListeners(eventName, data);
   }
 
+  @Override
+  protected void handleOnDestroy() {
+    if (_sshSession != null) {
+      _sshSession.cleanup();
+      _sshSession = null;
+    }
+    if (_tcpSocket != null) {
+      _tcpSocket.cleanup();
+      _tcpSocket = null;
+    }
+    _portForwarder.shutdown();
+    _netUtils.shutdown();
+    _sshUtils.shutdown();
+  }
+
   // basic
 
   @PluginMethod
@@ -62,6 +77,9 @@ public class NetUtilsPlugin extends Plugin {
 
   @PluginMethod
   public void sshConnect(PluginCall call) {
+    if (_sshSession != null) {
+      _sshSession.cleanup();
+    }
     _sshSession = new SSHSession(this);
     _sshSession.connect(call);
   }
@@ -91,12 +109,16 @@ public class NetUtilsPlugin extends Plugin {
       return;
     }
     _sshSession.disconnect(call);
+    _sshSession = null;
   }
 
   // tcp
 
   @PluginMethod
   public void tcpConnect(PluginCall call) {
+    if (_tcpSocket != null) {
+      _tcpSocket.cleanup();
+    }
     _tcpSocket = new TCPSocket(this);
     _tcpSocket.connect(call);
   }
@@ -117,5 +139,6 @@ public class NetUtilsPlugin extends Plugin {
       return;
     }
     _tcpSocket.disconnect(call);
+    _tcpSocket = null;
   }
 }

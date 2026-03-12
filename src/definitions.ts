@@ -5,7 +5,7 @@ export interface NetUtilsPlugin {
   addListener(
     eventName: 'ssh:stdout' | 'ssh:stderr' | 'tcp:message',
     listenerFunc: (event: { data: any }) => void
-  ): PluginListenerHandle;
+  ): Promise<PluginListenerHandle>;
 
   removeAllListeners( ): Promise<void>;
 
@@ -123,7 +123,7 @@ export interface NetUtilsPlugin {
     output: {
       name: string;
       address: string;
-      type: 'wifi' | 'vpn' | 'cellular' | 'other';
+      type: 'wifi' | 'ethernet' | 'vpn' | 'cellular' | 'other';
     }[];
     error?: string;
   }>;

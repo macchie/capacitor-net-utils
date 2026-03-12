@@ -5,23 +5,27 @@ import com.getcapacitor.PluginCall;
 
 import com.jcraft.jsch.*;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class SSHUtils {
+
+  private final ExecutorService executor = Executors.newCachedThreadPool();
 
   public void sshExecSync(PluginCall call) {
     String host = call.getString("host");
     String user = call.getString("user");
     String password = call.getString("password");
     String command = call.getString("command");
-    Integer port = call.getInt("port", 22);
+    int port = call.getInt("port", 22);
 
     if (host == null || user == null || password == null || command == null) {
       call.reject("host, user, password, and command are required.");
       return;
     }
 
-    Executors.newSingleThreadExecutor().execute(() -> {
+    executor.execute(() -> {
       JSObject result = new JSObject();
       Session session = null;
 
@@ -30,7 +34,7 @@ public class SSHUtils {
         session = jsch.getSession(user, host, port);
         session.setPassword(password);
         session.setConfig("StrictHostKeyChecking", "no");
-        session.connect(10000); // 10 second timeout
+        session.connect(10000);
 
         if (!session.isConnected()) {
           result.put("output", "");
@@ -43,13 +47,13 @@ public class SSHUtils {
         channel.setCommand(command);
 
         InputStream in = channel.getInputStream();
-        channel.connect(10000); // 10 second timeout
+        channel.connect(10000);
 
         StringBuilder outputBuffer = new StringBuilder();
         byte[] tmp = new byte[1024];
         int len;
         while ((len = in.read(tmp)) != -1) {
-          outputBuffer.append(new String(tmp, 0, len));
+          outputBuffer.append(new String(tmp, 0, len, StandardCharsets.UTF_8));
         }
 
         result.put("output", outputBuffer.toString());
@@ -73,4 +77,7 @@ public class SSHUtils {
     });
   }
 
+  public void shutdown() {
+    executor.shutdownNow();
+  }
 }

@@ -48,35 +48,53 @@ public class NetUtils: NSObject {
       call.reject("Host, port, and protocol are required.")
       return
     }
-    
-    guard let port = NWEndpoint.Port(rawValue: UInt16(portInt)) else {
+
+    guard portInt > 0, portInt <= 65535, let port = NWEndpoint.Port(rawValue: UInt16(portInt)) else {
       call.reject("Invalid port number.")
       return
     }
-    
+
     let timeout = call.getInt("timeout") ?? 5000
     let parameters: NWParameters = (protocolStr.lowercased() == "udp") ? NWParameters.udp : NWParameters.tcp
-    
+
     let connection = NWConnection(host: NWEndpoint.Host(host), port: port, using: parameters)
-    
+
+    var resolved = false
+    let lock = NSLock()
+
     connection.stateUpdateHandler = { newState in
       switch newState {
       case .ready:
-        call.resolve(["open": true])
+        lock.lock()
+        let alreadyResolved = resolved
+        resolved = true
+        lock.unlock()
+        if !alreadyResolved {
+          call.resolve(["open": true])
+        }
         connection.cancel()
       case .failed(let error):
-        call.resolve(["open": false, "error": error.localizedDescription])
+        lock.lock()
+        let alreadyResolved = resolved
+        resolved = true
+        lock.unlock()
+        if !alreadyResolved {
+          call.resolve(["open": false, "error": error.localizedDescription])
+        }
         connection.cancel()
       default:
         break
       }
     }
-    
+
     connection.start(queue: .global())
-    
-    // If connection isn't ready within the timeout, resolve with a timeout error.
+
     DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(timeout)) {
-      if connection.state != .ready {
+      lock.lock()
+      let alreadyResolved = resolved
+      resolved = true
+      lock.unlock()
+      if !alreadyResolved {
         call.resolve(["open": false, "error": "Timeout"])
         connection.cancel()
       }
@@ -88,12 +106,11 @@ public class NetUtils: NSObject {
       call.reject("HOST is required.")
       return
     }
-    
-    // Run on a background queue
+
     DispatchQueue.global().async {
       var hostname: String?
       var infoPtr: UnsafeMutablePointer<addrinfo>?
-      
+
       var hints = addrinfo(
         ai_flags: AI_NUMERICHOST,
         ai_family: AF_UNSPEC,
@@ -103,7 +120,7 @@ public class NetUtils: NSObject {
         ai_canonname: nil,
         ai_addr: nil,
         ai_next: nil)
-      
+
       let error = getaddrinfo(host, nil, &hints, &infoPtr)
       if error == 0, let info = infoPtr, let addr = info.pointee.ai_addr {
         var hostBuffer = [CChar](repeating: 0, count: Int(NI_MAXHOST))
@@ -115,7 +132,7 @@ public class NetUtils: NSObject {
       if let infoPtr = infoPtr {
         freeaddrinfo(infoPtr)
       }
-      
+
       if let hostname = hostname {
         call.resolve(["hostname": hostname])
       } else {
@@ -130,7 +147,7 @@ public class NetUtils: NSObject {
 
     if getifaddrs(&ifaddr) == 0 {
       var ptr = ifaddr
-    
+
       while ptr != nil {
         defer { ptr = ptr?.pointee.ifa_next }
 
@@ -175,6 +192,6 @@ public class NetUtils: NSObject {
       freeifaddrs(ifaddr)
     }
 
-    call.resolve([ "output": interfacesResult ?? [], "error": "" ])
+    call.resolve(["output": interfacesResult, "error": ""])
   }
 }

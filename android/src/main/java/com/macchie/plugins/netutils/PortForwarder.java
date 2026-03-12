@@ -54,19 +54,21 @@ public class PortForwarder {
       return;
     }
 
-    ForwardingSession session = sessions.get(sessionId);
+    ForwardingSession session = sessions.remove(sessionId);
     if (session != null) {
       session.stop();
-      sessions.remove(sessionId);
     }
 
-    try {
-      JSObject result = new JSObject();
-      result.put("success", true);
-      result.put("id", sessionId);
-      call.resolve(result);
-    } catch (Exception e) {
-      call.reject("Failed to stop forwarding: " + e.getMessage(), e);
+    JSObject result = new JSObject();
+    result.put("success", true);
+    result.put("id", sessionId);
+    call.resolve(result);
+  }
+
+  public void shutdown() {
+    for (ForwardingSession session : sessions.values()) {
+      session.stop();
     }
+    sessions.clear();
   }
 }

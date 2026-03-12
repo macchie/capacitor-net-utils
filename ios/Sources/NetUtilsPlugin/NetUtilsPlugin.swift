@@ -6,7 +6,7 @@ public class NetUtilsPlugin: CAPPlugin, CAPBridgedPlugin {
 
   public let identifier = "NetUtilsPlugin"
   public let jsName = "NetUtils"
-  
+
   public let pluginMethods: [CAPPluginMethod] = [
     CAPPluginMethod(name: "getInterfaces", returnType: CAPPluginReturnPromise),
     CAPPluginMethod(name: "checkUrl", returnType: CAPPluginReturnPromise),
@@ -26,57 +26,58 @@ public class NetUtilsPlugin: CAPPlugin, CAPBridgedPlugin {
     CAPPluginMethod(name: "tcpWrite", returnType: CAPPluginReturnPromise),
     CAPPluginMethod(name: "tcpDisconnect", returnType: CAPPluginReturnPromise),
   ]
-  
+
   private let netUtils = NetUtils()
-  private let sshUtils: SSHUtils = SSHUtils()
+  private let sshUtils = SSHUtils()
   private let portForwarder = PortForwarder()
-  private var sshSession: SSHSession!
-  private var tcpSocket: TCPSocket!
+  private var sshSession: SSHSession?
+  private var tcpSocket: TCPSocket?
 
   // basic
 
   @objc func getInterfaces(_ call: CAPPluginCall) {
-    return netUtils.getInterfaces(call)
+    netUtils.getInterfaces(call)
   }
 
   @objc func checkUrl(_ call: CAPPluginCall) {
-    return netUtils.checkUrl(call)
+    netUtils.checkUrl(call)
   }
 
   @objc func checkPort(_ call: CAPPluginCall) {
-    return netUtils.checkPort(call)
+    netUtils.checkPort(call)
   }
 
   @objc func resolveHostname(_ call: CAPPluginCall) {
-    return netUtils.resolveHostname(call)
+    netUtils.resolveHostname(call)
   }
 
   @objc func startForwarding(_ call: CAPPluginCall) {
-    return portForwarder.startForwarding(call)
+    portForwarder.startForwarding(call)
   }
 
   @objc func stopForwarding(_ call: CAPPluginCall) {
-    return portForwarder.stopForwarding(call)
+    portForwarder.stopForwarding(call)
   }
 
   // ssh
 
   @objc func sshExecSync(_ call: CAPPluginCall) {
-    return sshUtils.execSync(call)
+    sshUtils.execSync(call)
   }
 
   @objc func sshConnect(_ call: CAPPluginCall) {
+    sshSession?.cleanup()
     sshSession = SSHSession(plugin: self)
-    return sshSession.connect(call)
+    sshSession!.connect(call)
   }
 
   @objc func sshStartShell(_ call: CAPPluginCall) {
     guard let sshSession = sshSession else {
-      call.reject("No active connection to write to.")
+      call.reject("No active connection to start shell on.")
       return
     }
-    
-    return sshSession.startShell(call)
+
+    sshSession.startShell(call)
   }
 
   @objc func sshWrite(_ call: CAPPluginCall) {
@@ -84,8 +85,8 @@ public class NetUtilsPlugin: CAPPlugin, CAPBridgedPlugin {
       call.reject("No active connection to write to.")
       return
     }
-    
-    return sshSession.write(call)
+
+    sshSession.write(call)
   }
 
   @objc func sshDisconnect(_ call: CAPPluginCall) {
@@ -94,14 +95,16 @@ public class NetUtilsPlugin: CAPPlugin, CAPBridgedPlugin {
       return
     }
 
-    return sshSession.disconnect(call)
+    sshSession.disconnect(call)
+    self.sshSession = nil
   }
 
   // tcp
 
   @objc func tcpConnect(_ call: CAPPluginCall) {
+    tcpSocket?.disconnect(nil)
     tcpSocket = TCPSocket(plugin: self)
-    return tcpSocket.connect(call)
+    tcpSocket!.connect(call)
   }
 
   @objc func tcpWrite(_ call: CAPPluginCall) {
@@ -109,8 +112,8 @@ public class NetUtilsPlugin: CAPPlugin, CAPBridgedPlugin {
       call.reject("No active connection to write to.")
       return
     }
-    
-    return tcpSocket.write(call)
+
+    tcpSocket.write(call)
   }
 
   @objc func tcpDisconnect(_ call: CAPPluginCall) {
@@ -119,6 +122,7 @@ public class NetUtilsPlugin: CAPPlugin, CAPBridgedPlugin {
       return
     }
 
-    return tcpSocket.disconnect(call)
+    tcpSocket.disconnect(call)
+    self.tcpSocket = nil
   }
 }

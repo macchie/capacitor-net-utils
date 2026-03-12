@@ -1,20 +1,15 @@
 import { PluginListenerHandle, WebPlugin } from '@capacitor/core';
 import { NetUtilsPlugin } from './definitions';
 
-
 export class NetUtilsWeb extends WebPlugin implements NetUtilsPlugin {
-
-  constructor() {
-    super();
-  }
 
   // basic
 
-  addListener(_eventName: 'ssh:stdout' | 'ssh:stderr' | 'tcp:message', _listenerFunc: (event: { data: string }) => void): Promise<PluginListenerHandle> & PluginListenerHandle {
+  async addListener(_eventName: 'ssh:stdout' | 'ssh:stderr' | 'tcp:message', _listenerFunc: (event: { data: any }) => void): Promise<PluginListenerHandle> {
     throw this.unimplemented('addListener is not available in the web environment.');
   }
 
-  async removeAllListeners() {
+  async removeAllListeners(): Promise<void> {
     throw this.unimplemented('removeAllListeners is not available in the web environment.');
   }
 
@@ -22,11 +17,11 @@ export class NetUtilsWeb extends WebPlugin implements NetUtilsPlugin {
     output: {
       name: string;
       address: string;
-      type: 'wifi' | 'vpn' | 'cellular' | 'other';
+      type: 'wifi' | 'ethernet' | 'vpn' | 'cellular' | 'other';
     }[];
     error?: string;
   }> {
-    throw this.unimplemented('getIpAddresses is not available in the web environment.');
+    throw this.unimplemented('getInterfaces is not available in the web environment.');
   }
 
   async checkUrl(_options: { url: string; timeout?: number }): Promise<{ exists: boolean; statusCode?: number; error?: string }> {
@@ -45,7 +40,7 @@ export class NetUtilsWeb extends WebPlugin implements NetUtilsPlugin {
     throw this.unimplemented('startForwarding is not available in the web environment.');
   }
 
-  async stopForwarding(_options: { id?: string; }): Promise<{ success: boolean; id?: string; error?: string }> {
+  async stopForwarding(_options: { id: string; }): Promise<{ success: boolean; id?: string; error?: string }> {
     throw this.unimplemented('stopForwarding is not available in the web environment.');
   }
 
@@ -55,10 +50,10 @@ export class NetUtilsWeb extends WebPlugin implements NetUtilsPlugin {
     throw this.unimplemented('sshExecSync is not available in the web environment.');
   }
 
-  async sshConnect(_options: {  host: string; port: number, username: string, password: string }): Promise<{ success: boolean; error?: string }> {
+  async sshConnect(_options: { host: string; port: number; username: string; password: string }): Promise<{ success: boolean; error?: string }> {
     throw this.unimplemented('sshConnect is not available in the web environment.');
   }
-  
+
   async sshWrite(_options: { command: string }): Promise<{ success: boolean; error?: string }> {
     throw this.unimplemented('sshWrite is not available in the web environment.');
   }
@@ -73,10 +68,10 @@ export class NetUtilsWeb extends WebPlugin implements NetUtilsPlugin {
 
   // tcp
 
-  async tcpConnect(_options: {  host: string; port: number }): Promise<{ success: boolean; error?: string }> {
+  async tcpConnect(_options: { host: string; port: number }): Promise<{ success: boolean; error?: string }> {
     throw this.unimplemented('tcpConnect is not available in the web environment.');
   }
-  
+
   async tcpWrite(_options: { data: string }): Promise<{ success: boolean; error?: string }> {
     throw this.unimplemented('tcpWrite is not available in the web environment.');
   }

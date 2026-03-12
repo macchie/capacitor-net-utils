@@ -6,6 +6,8 @@ import com.jcraft.jsch.*;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class SSHSession {
@@ -14,6 +16,7 @@ public class SSHSession {
   private Channel shellChannel;
   private OutputStream shellInput;
   private final NetUtilsPlugin plugin;
+  private final ExecutorService executor = Executors.newCachedThreadPool();
 
   public SSHSession(NetUtilsPlugin plugin) {
     this.plugin = plugin;
@@ -30,7 +33,7 @@ public class SSHSession {
       return;
     }
 
-    Executors.newSingleThreadExecutor().execute(() -> {
+    executor.execute(() -> {
       try {
         JSch jsch = new JSch();
         jschSession = jsch.getSession(username, host, port);
@@ -57,7 +60,7 @@ public class SSHSession {
       return;
     }
 
-    Executors.newSingleThreadExecutor().execute(() -> {
+    executor.execute(() -> {
       try {
         shellChannel = jschSession.openChannel("shell");
         InputStream in = shellChannel.getInputStream();
@@ -69,12 +72,12 @@ public class SSHSession {
         call.resolve(result);
 
         // Read loop in background
-        Executors.newSingleThreadExecutor().execute(() -> {
+        executor.execute(() -> {
           byte[] buffer = new byte[1024];
           int len;
           try {
             while ((len = in.read(buffer)) != -1) {
-              String data = new String(buffer, 0, len);
+              String data = new String(buffer, 0, len, StandardCharsets.UTF_8);
               JSObject event = new JSObject();
               event.put("data", data);
               plugin.emit("ssh:stdout", event);
@@ -102,9 +105,9 @@ public class SSHSession {
       return;
     }
 
-    Executors.newSingleThreadExecutor().execute(() -> {
+    executor.execute(() -> {
       try {
-        shellInput.write((command + "\n").getBytes());
+        shellInput.write((command + "\n").getBytes(StandardCharsets.UTF_8));
         shellInput.flush();
         JSObject result = new JSObject();
         result.put("success", true);
@@ -116,6 +119,15 @@ public class SSHSession {
   }
 
   public void disconnect(PluginCall call) {
+    cleanup();
+    if (call != null) {
+      JSObject result = new JSObject();
+      result.put("success", true);
+      call.resolve(result);
+    }
+  }
+
+  public void cleanup() {
     try {
       if (shellChannel != null) {
         shellChannel.disconnect();
@@ -126,11 +138,7 @@ public class SSHSession {
         jschSession.disconnect();
         jschSession = null;
       }
-      JSObject result = new JSObject();
-      result.put("success", true);
-      call.resolve(result);
-    } catch (Exception e) {
-      call.reject("Failed to disconnect: " + e.getMessage());
-    }
+    } catch (Exception ignored) {}
+    executor.shutdownNow();
   }
 }

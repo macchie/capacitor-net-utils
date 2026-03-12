@@ -9,6 +9,7 @@ public class NetUtilsPlugin: CAPPlugin, CAPBridgedPlugin {
   
   public let pluginMethods: [CAPPluginMethod] = [
     CAPPluginMethod(name: "getInterfaces", returnType: CAPPluginReturnPromise),
+    CAPPluginMethod(name: "checkUrl", returnType: CAPPluginReturnPromise),
     CAPPluginMethod(name: "checkPort", returnType: CAPPluginReturnPromise),
     CAPPluginMethod(name: "resolveHostname", returnType: CAPPluginReturnPromise),
 
@@ -36,6 +37,10 @@ public class NetUtilsPlugin: CAPPlugin, CAPBridgedPlugin {
 
   @objc func getInterfaces(_ call: CAPPluginCall) {
     return netUtils.getInterfaces(call)
+  }
+
+  @objc func checkUrl(_ call: CAPPluginCall) {
+    return netUtils.checkUrl(call)
   }
 
   @objc func checkPort(_ call: CAPPluginCall) {

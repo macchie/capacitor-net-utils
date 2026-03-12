@@ -27,6 +27,11 @@ public class NetUtilsPlugin extends Plugin {
   }
 
   @PluginMethod
+  public void checkUrl(PluginCall call) {
+    _netUtils.checkUrl(call);
+  }
+
+  @PluginMethod
   public void checkPort(PluginCall call) {
     _netUtils.checkPort(call);
   }

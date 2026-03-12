@@ -29,6 +29,10 @@ export class NetUtilsWeb extends WebPlugin implements NetUtilsPlugin {
     throw this.unimplemented('getIpAddresses is not available in the web environment.');
   }
 
+  async checkUrl(_options: { url: string; timeout?: number }): Promise<{ exists: boolean; statusCode?: number; error?: string }> {
+    throw this.unimplemented('checkUrl is not available in the web environment.');
+  }
+
   async checkPort(_options: { host: string; port: number; protocol: 'tcp' | 'udp'; timeout?: number }): Promise<{ open: boolean; error?: string }> {
     throw this.unimplemented('checkPort is not available in the web environment.');
   }

@@ -10,6 +10,7 @@ const NetUtilsCap = registerPlugin<NetUtilsPlugin>('NetUtils', {
 //export { NetUtilsCap };
 
 export const NetUtils = {
+  checkUrl: NetUtilsCap.checkUrl,
   checkPort: NetUtilsCap.checkPort,
   resolveHostname: NetUtilsCap.resolveHostname,
   getInterfaces: NetUtilsCap.getInterfaces,

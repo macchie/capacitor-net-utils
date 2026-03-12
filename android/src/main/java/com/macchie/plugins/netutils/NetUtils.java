@@ -7,8 +7,10 @@ import java.util.Enumeration;
 import java.util.List;
 import java.net.NetworkInterface;
 import java.net.DatagramSocket;
+import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.URI;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PluginCall;
@@ -91,6 +93,45 @@ public class NetUtils {
           result.put("error", e.getMessage());
           call.resolve(result);
         } catch (Exception ignored) {}
+      }
+    });
+  }
+
+  public void checkUrl(PluginCall call) {
+    String urlString = call.getString("url");
+    if (urlString == null || urlString.isEmpty()) {
+      call.reject("A valid URL is required.");
+      return;
+    }
+
+    int timeout = call.getInt("timeout") != null ? call.getInt("timeout") : 5000;
+
+    Executors.newSingleThreadExecutor().execute(() -> {
+      HttpURLConnection connection = null;
+      try {
+        URI uri = URI.create(urlString);
+        connection = (HttpURLConnection) uri.toURL().openConnection();
+        connection.setRequestMethod("HEAD");
+        connection.setConnectTimeout(timeout);
+        connection.setReadTimeout(timeout);
+        connection.setInstanceFollowRedirects(true);
+
+        int statusCode = connection.getResponseCode();
+        boolean exists = statusCode >= 200 && statusCode < 400;
+
+        JSObject result = new JSObject();
+        result.put("exists", exists);
+        result.put("statusCode", statusCode);
+        call.resolve(result);
+      } catch (Exception e) {
+        JSObject result = new JSObject();
+        result.put("exists", false);
+        result.put("error", e.getMessage());
+        call.resolve(result);
+      } finally {
+        if (connection != null) {
+          connection.disconnect();
+        }
       }
     });
   }

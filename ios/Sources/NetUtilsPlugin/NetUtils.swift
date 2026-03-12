@@ -5,6 +5,42 @@ import Network
 @objc(NetUtils)
 public class NetUtils: NSObject {
 
+    @objc func checkUrl(_ call: CAPPluginCall) {
+    guard let urlString = call.getString("url"),
+          let url = URL(string: urlString) else {
+      call.reject("A valid URL is required.")
+      return
+    }
+
+    let timeout = Double(call.getInt("timeout") ?? 5000) / 1000.0
+
+    var request = URLRequest(url: url)
+    request.httpMethod = "HEAD"
+    request.timeoutInterval = timeout
+
+    let config = URLSessionConfiguration.ephemeral
+    config.timeoutIntervalForRequest = timeout
+    config.timeoutIntervalForResource = timeout
+    let session = URLSession(configuration: config)
+
+    session.dataTask(with: request) { _, response, error in
+      defer { session.finishTasksAndInvalidate() }
+
+      if let error = error {
+        call.resolve(["exists": false, "error": error.localizedDescription])
+        return
+      }
+
+      if let httpResponse = response as? HTTPURLResponse {
+        let statusCode = httpResponse.statusCode
+        let exists = statusCode >= 200 && statusCode < 400
+        call.resolve(["exists": exists, "statusCode": statusCode])
+      } else {
+        call.resolve(["exists": false, "error": "Invalid response"])
+      }
+    }.resume()
+  }
+
     @objc func checkPort(_ call: CAPPluginCall) {
     guard let host = call.getString("host"),
           let portInt = call.getInt("port"),

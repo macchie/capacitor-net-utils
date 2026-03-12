@@ -17,6 +17,7 @@ npx cap sync
 
 * [`addListener('ssh:stdout' | 'ssh:stderr' | 'tcp:message', ...)`](#addlistenersshstdout--sshstderr--tcpmessage-)
 * [`removeAllListeners()`](#removealllisteners)
+* [`checkUrl(...)`](#checkurl)
 * [`checkPort(...)`](#checkport)
 * [`resolveHostname(...)`](#resolvehostname)
 * [`startForwarding(...)`](#startforwarding)
@@ -58,6 +59,23 @@ addListener(eventName: 'ssh:stdout' | 'ssh:stderr' | 'tcp:message', listenerFunc
 ```typescript
 removeAllListeners() => Promise<void>
 ```
+
+--------------------
+
+
+### checkUrl(...)
+
+```typescript
+checkUrl(options: { url: string; timeout?: number; }) => Promise<{ exists: boolean; statusCode?: number; error?: string; }>
+```
+
+Check if a URL exists by performing an HTTP HEAD request.
+
+| Param         | Type                                            |
+| ------------- | ----------------------------------------------- |
+| **`options`** | <code>{ url: string; timeout?: number; }</code> |
+
+**Returns:** <code>Promise&lt;{ exists: boolean; statusCode?: number; error?: string; }&gt;</code>
 
 --------------------
 

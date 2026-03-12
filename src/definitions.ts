@@ -10,6 +10,16 @@ export interface NetUtilsPlugin {
   removeAllListeners( ): Promise<void>;
 
   /**
+   * Check if a URL exists by performing an HTTP HEAD request.
+   *
+   * @param options.url - The URL to check (must include the scheme, e.g. "https://example.com")
+   * @param options.timeout - Timeout in milliseconds (default: 5000)
+   * @returns A promise resolving with an object containing an "exists" boolean,
+   *          the HTTP "statusCode", and an optional "error" message.
+   */
+  checkUrl(options: { url: string; timeout?: number }): Promise<{ exists: boolean; statusCode?: number; error?: string }>;
+
+  /**
    * Check if a network port is open on the given host using the specified protocol.
    *
    * @param options.host - The target host (IP or domain)

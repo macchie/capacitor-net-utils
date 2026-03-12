@@ -14,6 +14,7 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.PluginCall;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 import java.util.concurrent.Executors;
 
 public class NetUtils {
@@ -63,6 +64,35 @@ public class NetUtils {
     } catch (Exception e) {
       call.reject("Failed to get interfaces: " + e.getMessage(), e);
     }
+  }
+
+  public void resolveHostname(PluginCall call) {
+    String host = call.getString("host");
+    if (host == null) {
+      call.reject("HOST is required.");
+      return;
+    }
+
+    Executors.newSingleThreadExecutor().execute(() -> {
+      JSObject result = new JSObject();
+      try {
+        InetAddress addr = InetAddress.getByName(host);
+        String hostname = addr.getCanonicalHostName();
+        if (hostname != null && !hostname.equals(host)) {
+          result.put("hostname", hostname);
+        } else {
+          result.put("hostname", JSONObject.NULL);
+          result.put("error", "Hostname not found");
+        }
+        call.resolve(result);
+      } catch (Exception e) {
+        try {
+          result.put("hostname", JSONObject.NULL);
+          result.put("error", e.getMessage());
+          call.resolve(result);
+        } catch (Exception ignored) {}
+      }
+    });
   }
 
   public void checkPort(PluginCall call) {

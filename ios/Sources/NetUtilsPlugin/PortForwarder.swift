@@ -1,23 +1,13 @@
+import Foundation
 import Network
 import Capacitor
 
 @objc(PortForwarder)
 public class PortForwarder: NSObject {
-  
-  // Maintain multiple active forwarding sessions keyed by a unique session ID.
-  var sessions: [String: ForwardingSession] = [:]
 
-  /**
-    Start a forwarding session.
-    
-    Expected parameters (all provided in the CAPPluginCall):
-      - localPort (Int): The local port number to listen on.
-      - targetHost (String): The hostname or IP address to forward traffic to.
-      - targetPort (Int): The target port number.
-      - protocol (String, optional): "tcp" (default) or "udp".
-      - id (String, optional): A unique identifier for the session. If not provided, one is generated.
-    The method responds with the session id.
-    */
+  private let sessionsLock = NSLock()
+  private var sessions: [String: ForwardingSession] = [:]
+
   @objc func startForwarding(_ call: CAPPluginCall) {
     guard let localPort = call.getInt("localPort"),
           let targetHost = call.getString("targetHost"),
@@ -25,11 +15,10 @@ public class PortForwarder: NSObject {
       call.reject("Missing required parameters: localPort, targetHost, targetPort")
       return
     }
-        
-    // Default protocol is TCP. HTTP and websockets use TCP.
+
     let protocolStr = call.getString("protocol")?.lowercased() ?? "tcp"
     let sessionId = call.getString("id") ?? UUID().uuidString
-        
+
     do {
       let session = try ForwardingSession(
         id: sessionId,
@@ -38,28 +27,32 @@ public class PortForwarder: NSObject {
         targetHost: targetHost,
         targetPort: UInt16(targetPort)
       )
+        sessionsLock.lock()
         sessions[sessionId] = session
+        sessionsLock.unlock()
         session.start()
         call.resolve(["success": true, "id": sessionId])
       } catch {
         call.reject("Failed to start forwarding: \(error.localizedDescription)")
       }
     }
-    
-  /**
-    Stop a forwarding session.
-    Expected parameter:
-      - id (String): The session identifier returned when starting the session.
-  */
+
   @objc func stopForwarding(_ call: CAPPluginCall) {
-    guard let sessionId = call.getString("id"),
-          let session = sessions[sessionId] else {
+    guard let sessionId = call.getString("id") else {
+      call.reject("Session id not found")
+      return
+    }
+
+    sessionsLock.lock()
+    let session = sessions.removeValue(forKey: sessionId)
+    sessionsLock.unlock()
+
+    guard let session = session else {
       call.reject("Session id not found")
       return
     }
 
     session.stop()
-    sessions.removeValue(forKey: sessionId)
     call.resolve(["success": true, "id": sessionId])
   }
 }

@@ -12,11 +12,11 @@ import java.util.concurrent.Executors;
 
 public class SSHSession {
 
-  private Session jschSession;
-  private Channel shellChannel;
-  private OutputStream shellInput;
+  private volatile Session jschSession;
+  private volatile Channel shellChannel;
+  private volatile OutputStream shellInput;
   private final NetUtilsPlugin plugin;
-  private final ExecutorService executor = Executors.newCachedThreadPool();
+  private final ExecutorService serialExecutor = Executors.newSingleThreadExecutor();
 
   public SSHSession(NetUtilsPlugin plugin) {
     this.plugin = plugin;
@@ -33,7 +33,7 @@ public class SSHSession {
       return;
     }
 
-    executor.execute(() -> {
+    serialExecutor.execute(() -> {
       try {
         JSch jsch = new JSch();
         jschSession = jsch.getSession(username, host, port);
@@ -60,7 +60,7 @@ public class SSHSession {
       return;
     }
 
-    executor.execute(() -> {
+    serialExecutor.execute(() -> {
       try {
         shellChannel = jschSession.openChannel("shell");
         InputStream in = shellChannel.getInputStream();
@@ -71,8 +71,8 @@ public class SSHSession {
         result.put("success", true);
         call.resolve(result);
 
-        // Read loop in background
-        executor.execute(() -> {
+        // Read loop on shared pool to avoid blocking serial executor
+        PluginExecutors.shared().execute(() -> {
           byte[] buffer = new byte[1024];
           int len;
           try {
@@ -105,7 +105,7 @@ public class SSHSession {
       return;
     }
 
-    executor.execute(() -> {
+    serialExecutor.execute(() -> {
       try {
         shellInput.write((command + "\n").getBytes(StandardCharsets.UTF_8));
         shellInput.flush();
@@ -127,7 +127,7 @@ public class SSHSession {
     }
   }
 
-  public void cleanup() {
+  public synchronized void cleanup() {
     try {
       if (shellChannel != null) {
         shellChannel.disconnect();
@@ -139,6 +139,6 @@ public class SSHSession {
         jschSession = null;
       }
     } catch (Exception ignored) {}
-    executor.shutdownNow();
+    serialExecutor.shutdownNow();
   }
 }

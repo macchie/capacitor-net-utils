@@ -21,17 +21,18 @@ public class NetUtilsPlugin extends Plugin {
 
   @Override
   protected void handleOnDestroy() {
-    if (_sshSession != null) {
-      _sshSession.cleanup();
-      _sshSession = null;
-    }
-    if (_tcpSocket != null) {
-      _tcpSocket.cleanup();
-      _tcpSocket = null;
+    synchronized (this) {
+      if (_sshSession != null) {
+        _sshSession.cleanup();
+        _sshSession = null;
+      }
+      if (_tcpSocket != null) {
+        _tcpSocket.cleanup();
+        _tcpSocket = null;
+      }
     }
     _portForwarder.shutdown();
-    _netUtils.shutdown();
-    _sshUtils.shutdown();
+    PluginExecutors.shutdownAll();
   }
 
   // basic
@@ -76,7 +77,7 @@ public class NetUtilsPlugin extends Plugin {
   }
 
   @PluginMethod
-  public void sshConnect(PluginCall call) {
+  public synchronized void sshConnect(PluginCall call) {
     if (_sshSession != null) {
       _sshSession.cleanup();
     }
@@ -103,7 +104,7 @@ public class NetUtilsPlugin extends Plugin {
   }
 
   @PluginMethod
-  public void sshDisconnect(PluginCall call) {
+  public synchronized void sshDisconnect(PluginCall call) {
     if (_sshSession == null) {
       call.reject("No active connection to disconnect.");
       return;
@@ -115,7 +116,7 @@ public class NetUtilsPlugin extends Plugin {
   // tcp
 
   @PluginMethod
-  public void tcpConnect(PluginCall call) {
+  public synchronized void tcpConnect(PluginCall call) {
     if (_tcpSocket != null) {
       _tcpSocket.cleanup();
     }
@@ -133,7 +134,7 @@ public class NetUtilsPlugin extends Plugin {
   }
 
   @PluginMethod
-  public void tcpDisconnect(PluginCall call) {
+  public synchronized void tcpDisconnect(PluginCall call) {
     if (_tcpSocket == null) {
       call.reject("No active connection to disconnect.");
       return;

@@ -6,12 +6,8 @@ import com.getcapacitor.PluginCall;
 import com.jcraft.jsch.*;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class SSHUtils {
-
-  private final ExecutorService executor = Executors.newCachedThreadPool();
 
   public void sshExecSync(PluginCall call) {
     String host = call.getString("host");
@@ -25,7 +21,7 @@ public class SSHUtils {
       return;
     }
 
-    executor.execute(() -> {
+    PluginExecutors.shared().execute(() -> {
       JSObject result = new JSObject();
       Session session = null;
 
@@ -77,7 +73,4 @@ public class SSHUtils {
     });
   }
 
-  public void shutdown() {
-    executor.shutdownNow();
-  }
 }

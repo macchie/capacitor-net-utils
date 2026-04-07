@@ -114,7 +114,7 @@ public class SSHSession: NSObject, NMSSHChannelDelegate {
     channel?.delegate = self
     channel?.requestPty = true
 
-    DispatchQueue.global(qos: .background).async { [weak self] in
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       do {
         try self?.channel?.startShell()
         call.resolve(["success": true])

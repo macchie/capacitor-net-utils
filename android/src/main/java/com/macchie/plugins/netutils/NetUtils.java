@@ -19,12 +19,8 @@ import com.getcapacitor.PluginCall;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class NetUtils {
-
-  private final ExecutorService executor = Executors.newCachedThreadPool();
 
   public void getInterfaces(PluginCall call) {
     JSONArray interfacesResult = new JSONArray();
@@ -82,7 +78,7 @@ public class NetUtils {
       return;
     }
 
-    executor.execute(() -> {
+    PluginExecutors.shared().execute(() -> {
       JSObject result = new JSObject();
       try {
         InetAddress addr = InetAddress.getByName(host);
@@ -114,7 +110,7 @@ public class NetUtils {
     Integer timeoutVal = call.getInt("timeout");
     int timeout = timeoutVal != null ? timeoutVal : 5000;
 
-    executor.execute(() -> {
+    PluginExecutors.shared().execute(() -> {
       HttpURLConnection connection = null;
       try {
         URI uri = URI.create(urlString);
@@ -163,7 +159,7 @@ public class NetUtils {
     int timeout = timeoutVal != null ? timeoutVal : 5000;
     int port = portInt;
 
-    executor.execute(() -> {
+    PluginExecutors.shared().execute(() -> {
       boolean isOpen = false;
       String error = "";
 
@@ -216,7 +212,4 @@ public class NetUtils {
     });
   }
 
-  public void shutdown() {
-    executor.shutdownNow();
-  }
 }

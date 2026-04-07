@@ -14,9 +14,9 @@ import java.util.concurrent.Executors;
 public class TCPSocket {
 
   private Socket socket;
-  private OutputStream outputStream;
+  private volatile OutputStream outputStream;
   private final NetUtilsPlugin plugin;
-  private final ExecutorService executor = Executors.newCachedThreadPool();
+  private final ExecutorService serialExecutor = Executors.newSingleThreadExecutor();
 
   public TCPSocket(NetUtilsPlugin plugin) {
     this.plugin = plugin;
@@ -36,7 +36,7 @@ public class TCPSocket {
       return;
     }
 
-    executor.execute(() -> {
+    serialExecutor.execute(() -> {
       try {
         socket = new Socket();
         socket.connect(new InetSocketAddress(host, port), 5000);
@@ -44,8 +44,8 @@ public class TCPSocket {
 
         InputStream in = socket.getInputStream();
 
-        // Start background read loop
-        executor.execute(() -> {
+        // Start background read loop on shared pool to avoid blocking serial executor
+        PluginExecutors.shared().execute(() -> {
           byte[] buffer = new byte[1024];
           int len;
           try {
@@ -81,7 +81,7 @@ public class TCPSocket {
       return;
     }
 
-    executor.execute(() -> {
+    serialExecutor.execute(() -> {
       try {
         outputStream.write(data.getBytes(StandardCharsets.UTF_8));
         outputStream.flush();
@@ -103,7 +103,7 @@ public class TCPSocket {
     }
   }
 
-  public void cleanup() {
+  public synchronized void cleanup() {
     try {
       if (socket != null && !socket.isClosed()) {
         socket.close();
@@ -111,6 +111,6 @@ public class TCPSocket {
     } catch (Exception ignored) {}
     socket = null;
     outputStream = null;
-    executor.shutdownNow();
+    serialExecutor.shutdownNow();
   }
 }

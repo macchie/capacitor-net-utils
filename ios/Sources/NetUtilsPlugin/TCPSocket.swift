@@ -6,6 +6,7 @@ import Network
 public class TCPSocket: NSObject {
 
   var connection: NWConnection?
+  private let connectionQueue = DispatchQueue(label: "com.macchie.TCPSocket.connection")
 
   weak var plugin: NetUtilsPlugin?
 
@@ -63,9 +64,9 @@ public class TCPSocket: NSObject {
       }
     }
 
-    connection?.start(queue: .global())
+    connection?.start(queue: connectionQueue)
 
-    DispatchQueue.global().asyncAfter(deadline: .now() + timeoutSeconds) { [weak self] in
+    DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + timeoutSeconds) { [weak self] in
       lock.lock()
       let alreadyResolved = resolved
       resolved = true

@@ -5,6 +5,13 @@ import Network
 @objc(NetUtils)
 public class NetUtils: NSObject {
 
+    private static let urlSession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 30
+        return URLSession(configuration: config)
+    }()
+
     @objc func checkUrl(_ call: CAPPluginCall) {
     guard let urlString = call.getString("url"),
           let url = URL(string: urlString) else {
@@ -18,13 +25,9 @@ public class NetUtils: NSObject {
     request.httpMethod = "HEAD"
     request.timeoutInterval = timeout
 
-    let config = URLSessionConfiguration.ephemeral
-    config.timeoutIntervalForRequest = timeout
-    config.timeoutIntervalForResource = timeout
-    let session = URLSession(configuration: config)
+    let session = NetUtils.urlSession
 
     session.dataTask(with: request) { _, response, error in
-      defer { session.finishTasksAndInvalidate() }
 
       if let error = error {
         call.resolve(["exists": false, "error": error.localizedDescription])
@@ -87,9 +90,9 @@ public class NetUtils: NSObject {
       }
     }
 
-    connection.start(queue: .global())
+    connection.start(queue: .global(qos: .userInitiated))
 
-    DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(timeout)) {
+    DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + .milliseconds(timeout)) {
       lock.lock()
       let alreadyResolved = resolved
       resolved = true
@@ -107,7 +110,7 @@ public class NetUtils: NSObject {
       return
     }
 
-    DispatchQueue.global().async {
+    DispatchQueue.global(qos: .userInitiated).async {
       var hostname: String?
       var infoPtr: UnsafeMutablePointer<addrinfo>?
 
